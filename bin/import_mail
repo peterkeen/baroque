@@ -1,0 +1,122 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'mail'
+require 'net/imap'
+require 'yajl/json_gem'
+require 'sanitize'
+require 'iconv'
+
+begin
+  require 'mail_client'
+rescue LoadError => e
+  path = File.expand_path '../../lib', __FILE__
+  $:.unshift(path) if File.directory?(path) && !$:.include?(path)
+  require 'mail_client'
+end
+
+require 'mail_client/parser_extention'
+
+GmailImapExtensions.patch_net_imap_response_parser
+
+STDOUT.sync = true
+
+PASSWORD = 'wxnwcdxskgczelan'
+
+puts "connecting"
+imap = Net::IMAP.new('imap.gmail.com', 993, true)
+imap.login('peter.keen@gmail.com', PASSWORD)
+
+def force_utf(s)
+  Iconv.conv('UTF-8//IGNORE', 'UTF-8', s + ' ')[0..-2]
+end
+
+Tire.index 'messages' do |msg_index|
+
+  puts "deleting"
+  delete
+
+  puts "creating mapping"
+  create :settings => {
+    :analysis => {
+      :analyzer => {
+        :uax_url_email => {
+          :filters => [ :standard, :lowercase, :stop ],
+          :tokenizer => :uax_url_email
+        }
+      }
+    }
+  },
+  :mappings => {
+    :message => {
+      :properties => {
+        :id       => {:type => 'number', :index => 'not_analyzed', :store => true },
+        :subject  => {:type => 'string', :analyzer => 'snowball', :boost => 10 },
+        :from     => {:type => 'multi_field',
+          :fields => {
+            :from => {:type => 'string', :analyzer => 'uax_url_email', :boost => 100},
+            :exact => {:type => 'string', :index => 'not_analyzed', :store => true }
+          }
+        },
+        :to => { :type => 'multi_field',
+          :fields => {
+            :to => {:type => 'string', :analyzer => 'uax_url_email', :boost => 100 },
+            :exact => {:type => 'string', :index => 'not_analyzed', :store => true }
+          }
+        },
+        :headers => { :type => 'string', :analyzer => 'uax_url_email' },
+        :date => { :type => 'date' },
+        :body => { :type => 'string', :analyzer => 'snowball' },
+        :original => { :type => 'string', :index => 'not_analyzed', :store => false },
+        :thread_id => { :type => 'number', :index => 'not_analyzed', :store => true },
+        :labels => { :type => 'string', :analyzer => 'keyword' },
+        :flags => { :type => 'string', :analyzer => 'keyword' },
+      },
+      :_source => { :compress => true }
+    }
+  }
+
+  puts "fetching mail"
+  imap.select('[Gmail]/All Mail')
+  uids = []
+  imap.uid_search('UID 1:*').each do |uid|
+    uids << uid
+    if uids.length >= 200
+      puts "fetching #{uids[0]} - #{uids[-1]}"
+      msgs = imap.uid_fetch(uids, %w(FLAGS
+         RFC822 X-GM-LABELS X-GM-THRID UID))
+
+      messages = []
+
+      for parts in msgs
+        obj = {}
+        mail = Mail::Message.new(parts.attr['RFC822'].to_s)
+        obj['id'] = parts.attr['UID']
+        obj['type'] = 'message'
+        obj['flags'] = parts.attr['FLAGS'].to_a
+        obj['labels'] = parts.attr['X-GM-LABELS'].to_a
+        obj['thread_id'] = parts.attr['X-GM-THRID']
+        obj['original'] = parts.attr['RFC822'].to_s
+        obj['from'] = mail.from
+        obj['to'] = mail.to
+        obj['body'] = Sanitize.clean(force_utf(mail.body.to_s))
+        obj['subject'] = mail.subject
+        obj['date'] = mail.date
+        messages << obj
+      end
+      puts "importing #{uids[0]} - #{uids[-1]}"
+      import messages
+      uids.clear
+    end
+  end
+
+  if messages.length > 0
+    import messages
+    messages.clear
+  end
+
+end
+
+
+imap.logout()
+imap.disconnect()

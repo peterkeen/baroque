@@ -1,0 +1,92 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'mail'
+require 'net/imap'
+require 'yajl/json_gem'
+require 'sanitize'
+require 'iconv'
+
+begin
+  require 'mail_client'
+rescue LoadError => e
+  path = File.expand_path '../../lib', __FILE__
+  $:.unshift(path) if File.directory?(path) && !$:.include?(path)
+  require 'mail_client'
+end
+
+require 'mail_client/parser_extention'
+require 'mail_client/message_store'
+
+GmailImapExtensions.patch_net_imap_response_parser
+
+STDOUT.sync = true
+
+PASSWORD = 'wxnwcdxskgczelan'
+
+$stderr.puts "connecting"
+imap = Net::IMAP.new('imap.gmail.com', 993, true)
+imap.login('peter.keen@gmail.com', PASSWORD)
+
+store = MailClient::ObjectStore.new("messages")
+
+def force_utf(s)
+  Iconv.conv('UTF-8//IGNORE', 'UTF-8', s + ' ')[0..-2]
+end
+
+$stderr.puts "fetching mail"
+imap.select('[Gmail]/All Mail')
+uids = []
+
+max_id = store.get_metadata('max_id')
+
+if not max_id
+  max_id = 1
+end
+
+search = "UID #{max_id}:*"
+
+def fetch_and_write(imap, store, uids)
+  $stderr.puts "fetching #{uids[0]} - #{uids[-1]}"
+  msgs = imap.uid_fetch(uids, %w(FLAGS
+     RFC822 X-GM-LABELS X-GM-THRID UID))
+
+  for parts in msgs
+    obj = {}
+    mail = Mail::Message.new(parts.attr['RFC822'].to_s)
+    if mail
+      obj['id'] = parts.attr['UID']
+      obj['flags'] = parts.attr['FLAGS'].to_a
+      obj['labels'] = parts.attr['X-GM-LABELS'].to_a
+      obj['thread_id'] = parts.attr['X-GM-THRID']
+      obj['original'] = parts.attr['RFC822'].to_s
+      obj['from'] = mail.from
+      obj['to'] = mail.to
+      obj['body'] = force_utf(mail.body.to_s)
+      obj['subject'] = mail.subject
+      obj['date'] = mail.date
+
+      if mail.date
+        store << obj.to_json
+      end
+
+    end
+
+  end
+  store.set_metadata('max_id', uids[-1])
+end
+
+imap.uid_search(search).each do |uid|
+  uids << uid
+  if uids.length >= 1000
+    fetch_and_write(imap, store, uids)
+    uids.clear
+  end
+end
+
+if uids.length > 0
+  fetch_and_write(imap, store, uids)
+end
+
+imap.logout()
+imap.disconnect()

@@ -1,0 +1,93 @@
+require 'spec_helper'
+require 'mail_client/message_store'
+require 'mail_client/packfile'
+require 'digest/sha1'
+
+def obj_path(dir, sha)
+  path = dir + "/objects/" + sha[0...2] + "/" + sha[2..40]
+  path
+end
+  
+
+describe MailClient::ObjectStore do
+  describe "#add_object" do
+    it "should add objects at the correct path" do
+      dir = Dir.mktmpdir
+      o = MailClient::ObjectStore.new(dir)
+      sha = o.add_object("hi there")
+
+      File.exists?(obj_path(dir, sha)).should eq true
+    end
+  end
+
+  describe "#get_object" do
+    it "should get an object" do
+      dir = Dir.mktmpdir
+      o = MailClient::ObjectStore.new(dir)
+      sha = o.add_object("hi there")
+
+      o.get_object(sha).should eq 'hi there'
+    end
+  end
+
+  describe "#each_object" do
+    it "should iterate each object" do
+      dir = Dir.mktmpdir
+      o = MailClient::ObjectStore.new(dir)
+      o.add_object("hi there")
+      o.add_object("good bye")
+      
+      objs = []
+      o.each_object do |sha, obj|
+        objs << obj
+      end
+
+      objs.sort.should eq ['good bye', 'hi there']
+    end
+
+    it "should include packed objects" do
+      dir = Dir.mktmpdir
+      o = MailClient::ObjectStore.new(dir)
+      o.add_object("hi there")
+      sha = o.add_object("good bye")
+      pack = MailClient::Packfile.new(dir + "/objects/pack/pack-foo.pack")
+      pack.add_object(sha)
+      pack.write(o)
+
+      objs = []
+      o.each_object do |sha, obj|
+        objs << obj
+      end
+
+      objs.sort.should eq ['good bye', 'good bye', 'hi there']      
+    end
+  end
+
+  describe "#pack_loose" do
+    it "should pack all of the loose objects" do
+      dir = Dir.mktmpdir
+      o = MailClient::ObjectStore.new(dir)
+      sha = o.add_object("hi there")
+      o.pack_loose
+
+      objs = []
+      o.each_object(true, false) do |sha, obj|
+        objs << obj
+      end
+
+      objs.sort.should eq ['hi there']
+      
+    end
+
+    it "should delete all of the loose objects" do
+      dir = Dir.mktmpdir
+      o = MailClient::ObjectStore.new(dir)
+      sha = o.add_object("hi there")
+      o.pack_loose
+
+      File.exists?(dir + "/objects/" + sha[0...2] + '/' + sha[2..40]).should eq false
+
+    end
+  end
+end
+      

@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'zipruby'
+require 'benchmark'
+
+STDOUT.sync = true
+
+x = Benchmark.measure do
+
+  Zip::Archive.open("/Users/peter/temp/mail_backup/mailarchive.zip") do |zip|
+
+    z = Benchmark.measure do
+
+      zip.fopen('2001/1/1/4809.json') do |f|
+        puts f.read
+      end
+    end
+    puts z
+
+  end
+end
+
+puts x

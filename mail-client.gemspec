@@ -10,6 +10,7 @@ Gem::Specification.new do |s|
   s.summary     = %q{A web-based IMAP client}
   s.description = %q{A web-based IMAP client}
 
+  s.add_dependency('zipruby')
   s.add_dependency('sanitize')
   s.add_dependency("tire")
   s.add_dependency('yajl-ruby')

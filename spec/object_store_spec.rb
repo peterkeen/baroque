@@ -61,6 +61,19 @@ describe MailClient::ObjectStore do
 
       objs.sort.should eq ['good bye', 'good bye', 'hi there']      
     end
+
+    it "should write an index file" do
+      dir = Dir.mktmpdir
+      o = MailClient::ObjectStore.new(dir)
+      o.add_object("hi there")
+      sha = o.add_object("good bye")
+      pack = MailClient::Packfile.new(dir + "/objects/pack/pack-foo.pack")
+      pack.add_object(sha)
+      pack.write(o)
+
+      File.exists?(dir + '/objects/pack/pack-foo.idx').should eq true
+
+    end
   end
 
   describe "#pack_loose" do

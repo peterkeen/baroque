@@ -125,7 +125,7 @@ module MailClient
       Dir.glob(path + "**/*") do |filename|
         next unless File.file?(filename)
 
-        if filename =~ /objects\/pack/ and include_packed
+        if filename =~ /objects\/pack.*\.pack/ and include_packed
           pack = MailClient::Packfile.new(filename)
           pack.each_object() do |sha, compressed|
             yield sha, _unpack_compressed(compressed)
@@ -142,7 +142,7 @@ module MailClient
     def pack_loose
       packdir = @directory + '/objects/pack/'
       FileUtils.mkdir_p(packdir)
-      temp = Tempfile.new(packdir)
+      temp = Tempfile.new([packdir, '.pack'])
       temp.close
 
       pack = MailClient::Packfile.new(temp.path)
@@ -153,6 +153,7 @@ module MailClient
       sha = pack.write(self)
 
       File.rename(temp.path, packdir + "pack-#{sha}.pack")
+      File.rename(temp.path.gsub(".pack", ".idx"), packdir + "pack-#{sha}.idx")
 
       pack.shas.each do |sha|
         _delete_loose(sha)

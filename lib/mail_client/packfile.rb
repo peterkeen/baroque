@@ -21,7 +21,6 @@ module MailClient
         write_fanout(file)
         write_shas(file)
         write_offsets(file)
-        write_shasum(file)
       end
     end
 
@@ -54,7 +53,6 @@ module MailClient
       end
 
       fanout
-      
     end
 
     def shas
@@ -62,13 +60,17 @@ module MailClient
     end
 
     def write_shas(io)
+      shas.each do |sha|
+        io << [sha].pack('H*')
+      end
     end
 
     def write_offsets(io)
+      shas.each do |sha|
+        io << [@shas[sha]].pack('N')
+      end
     end
 
-    def write_shasum(io)
-    end
   end
   
   class Packfile
@@ -89,14 +91,17 @@ module MailClient
     def write(store)
       FileUtils.mkdir_p(File.dirname(@path))
       shasum = Digest::SHA1.new
+      index = MailClient::Indexfile.new(@path)
       File.open(@path, File::RDWR|File::CREAT, 0644) do |file|
         file.flock(File::LOCK_EX)
         write_header(file)
         shas.each do |sha|
           shasum << sha
+          index.update(sha, file.pos)
           write_obj(file, sha, store.get_compressed(sha))
         end
       end
+      index.write
       shasum.hexdigest
     end
 

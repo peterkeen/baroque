@@ -93,7 +93,18 @@ module Baroque
 
     def get_object(sha1)
       path = @directory + '/objects/' + sha1[0...2] + '/' + sha1[2..40]
-      _get_object_from_path(path)
+      if File.exists?(path)
+        _get_object_from_path(path)
+      elsif File.exists?(@directory + '/objects/pack/')
+        Dir.glob(@directory + '/objects/pack/pack*.pack') do |filename|
+          pack = Baroque::Packfile.new(filename, self)
+          if pack.has_object? sha1
+            return _unpack_compressed(pack.get_object(sha1))
+          end
+        end
+      else
+        raise "Object not found: #{sha1}"
+      end
     end
 
     def _get_object_from_path(path)

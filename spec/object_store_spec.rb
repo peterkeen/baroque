@@ -101,6 +101,16 @@ describe Baroque::ObjectStore do
       File.exists?(dir + "/objects/" + sha[0...2] + '/' + sha[2..40]).should eq false
 
     end
+
+    it "should get the object from the pack file after loose object cleanup" do
+      dir = Dir.mktmpdir
+      o = Baroque::ObjectStore.new(dir)
+      sha = o.add_object("hi there")
+      o.pack_loose
+
+      o.get_object(sha).should eq "hi there"
+
+    end
   end
 end
       

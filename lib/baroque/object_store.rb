@@ -120,6 +120,25 @@ module Baroque
       File.delete(path)
     end
 
+    def each_key(include_packed=true, include_loose=true)
+      path = @directory + '/objects/'
+      Dir.glob(path + "**/*") do |filename|
+        next unless File.file?(filename)
+
+        if filename =~ /objects\/pack.*\.pack/ and include_packed
+          pack = Baroque::Packfile.new(filename, self)
+          pack.each_object() do |sha|
+            yield sha
+          end
+        elsif include_loose
+          key = filename.gsub(path, '').gsub('/', '')
+          next unless key.length == 40
+
+          yield key
+        end
+      end
+    end
+
     def each_object(include_packed=true, include_loose=true)
       path = @directory + '/objects/'
       Dir.glob(path + "**/*") do |filename|
@@ -142,14 +161,14 @@ module Baroque
     def pack_loose
       packdir = @directory + '/objects/pack/'
       FileUtils.mkdir_p(packdir)
-      temp = Tempfile.new(['pack', '.pack'], packdir)
+      temp = Tempfile.new(['tmp', '.pack'], packdir)
       temp.close
 
       pack = Baroque::Packfile.new(temp.path, self)
 
       n = 0
       puts "Adding objects to pack"
-      each_object(false) do |key, obj|
+      each_key(false) do |key|
         pack.add_object(key)
         n = n + 1
         if n % 1000 == 0

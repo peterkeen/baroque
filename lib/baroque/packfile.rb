@@ -178,28 +178,28 @@ module Baroque
       binsha = [sha].pack('H*')
 
       open_for_read do |file|
-        num_shas = read_header(file)
-        fanout = read_fanout(file)
+        @num_shas ||= read_header(file)
+        @fanout ||= read_fanout(file)
         fanout_index = sha[0...2].to_i(16) - 1
 
-        shas = read_groups(file, 8 + 256 * 4, num_shas, 20)
+        @binshas ||= read_groups(file, 8 + 256 * 4, @num_shas, 20)
 
         prev_index = fanout_index > 0 ? fanout_index - 1 : 0
 
-        imin = fanout[prev_index]
-        imax = fanout[fanout_index]
+        imin = 0
+        imax = @num_shas
 
         while imax > imin
           imid = ((imax + imin) / 2).to_i
 
-          if shas[imid] < binsha
+          if @binshas[imid] < binsha
             imin = imid + 1
           else
             imax = imid
           end
         end
-        if (imax == imin) && shas[imin] == binsha
-          return read_bytes(file, 8 + 256 * 4 + num_shas * 20 + imin * 4, 4, 'N')[0]
+        if (imax == imin) && @binshas[imin] == binsha
+          return read_bytes(file, 8 + 256 * 4 + @num_shas * 20 + imin * 4, 4, 'N')[0]
         else
           return -1
         end
@@ -219,6 +219,7 @@ module Baroque
       @shas = []
       @path = path
       @store = store
+      @index = Baroque::Indexfile.new(path)
     end
 
     def path
@@ -243,13 +244,16 @@ module Baroque
 
     def write_file(io)
       shasum = Digest::SHA1.new
-      index = Baroque::Indexfile.new(path)
-      shas.each do |sha|
+      shas.each_with_index do |sha, i|
         shasum << sha
-        index.update(sha, io.pos)
+        @index.update(sha, io.pos)
         write_obj(io, sha, @store.get_compressed(sha))
+        if i % 1000 == 0
+          puts i
+        end
       end
-      index.write
+      puts "writing index"
+      @index.write
       shasum.hexdigest
     end
       
@@ -297,14 +301,12 @@ module Baroque
     end
 
     def has_object?(sha)
-      index = Baroque::Indexfile.new(@path)
-      index.offset(sha) != -1
+      @index.offset(sha) != -1
     end
 
     def get_object(sha)
-      index = Baroque::Indexfile.new(@path)
-      offset = index.offset(sha)
-      if index.offset(sha) != -1
+      offset = @index.offset(sha)
+      if offset != -1
         open_for_read do |file|
           file.seek(offset, 0)
           size, file_sha, compressed = read_obj(file)

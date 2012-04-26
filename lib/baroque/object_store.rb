@@ -3,9 +3,9 @@ require 'digest/sha1'
 require 'zlib'
 require 'yajl/json_gem'
 require 'tempfile'
-require 'mail_client/packfile'
+require 'baroque/packfile'
 
-module MailClient
+module Baroque
 
   class Metadata
     def initialize(directory)
@@ -126,7 +126,7 @@ module MailClient
         next unless File.file?(filename)
 
         if filename =~ /objects\/pack.*\.pack/ and include_packed
-          pack = MailClient::Packfile.new(filename, self)
+          pack = Baroque::Packfile.new(filename, self)
           pack.each_object() do |sha, compressed|
             yield sha, _unpack_compressed(compressed)
           end
@@ -145,7 +145,7 @@ module MailClient
       temp = Tempfile.new(['pack', '.pack'], packdir)
       temp.close
 
-      pack = MailClient::Packfile.new(temp.path, self)
+      pack = Baroque::Packfile.new(temp.path, self)
 
       n = 0
       puts "Adding objects to pack"

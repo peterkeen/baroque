@@ -3,15 +3,15 @@
 require 'rubygems'
 
 begin
-  require 'mail_client'
+  require 'baroque'
 rescue LoadError => e
   path = File.expand_path '../../lib', __FILE__
   $:.unshift(path) if File.directory?(path) && !$:.include?(path)
-  require 'mail_client'
+  require 'baroque'
 end
 
-require 'mail_client/message_store'
+require 'baroque/object_store'
 
-store = MailClient::ObjectStore.new('messages')
+store = Baroque::ObjectStore.new('messages')
 
 store.pack_loose

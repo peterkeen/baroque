@@ -1,10 +1,10 @@
 require 'spec_helper'
-require 'mail_client/packfile'
+require 'baroque/packfile'
 
-describe MailClient::Indexfile do
+describe Baroque::Indexfile do
   describe "#update" do
     it "should add shas and offsets" do
-      i = MailClient::Indexfile.new('')
+      i = Baroque::Indexfile.new('')
       i.update('dead', 0)
       i.update('beef', 100)
 
@@ -15,7 +15,7 @@ describe MailClient::Indexfile do
 
   describe "#calculate_fanout" do
     it "should calculate fanout" do
-      i = MailClient::Indexfile.new('')
+      i = Baroque::Indexfile.new('')
       i.update('dead', 0)
       i.update('beef', 100)
       i.update('bead', 200)

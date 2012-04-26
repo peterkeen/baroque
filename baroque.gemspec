@@ -1,14 +1,14 @@
 $:.push File.expand_path("../lib", __FILE__)
 
 Gem::Specification.new do |s|
-  s.name        = "mail-client"
+  s.name        = "baroque"
   s.version     = '0.0.1'
   s.date        = `date +%Y-%m-%d`
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Pete Keen"]
   s.email       = ["pete@bugsplat.info"]
-  s.summary     = %q{A web-based IMAP client}
-  s.description = %q{A web-based IMAP client}
+  s.summary     = %q{An elegant email client for a more civilized age}
+  s.description = %q{An elegant email client for a more civilized age}
 
   s.add_dependency('zipruby')
   s.add_dependency('sanitize')

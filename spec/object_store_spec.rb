@@ -1,6 +1,6 @@
 require 'spec_helper'
-require 'mail_client/message_store'
-require 'mail_client/packfile'
+require 'baroque/object_store'
+require 'baroque/packfile'
 require 'digest/sha1'
 
 def obj_path(dir, sha)
@@ -9,11 +9,11 @@ def obj_path(dir, sha)
 end
   
 
-describe MailClient::ObjectStore do
+describe Baroque::ObjectStore do
   describe "#add_object" do
     it "should add objects at the correct path" do
       dir = Dir.mktmpdir
-      o = MailClient::ObjectStore.new(dir)
+      o = Baroque::ObjectStore.new(dir)
       sha = o.add_object("hi there")
 
       File.exists?(obj_path(dir, sha)).should eq true
@@ -23,7 +23,7 @@ describe MailClient::ObjectStore do
   describe "#get_object" do
     it "should get an object" do
       dir = Dir.mktmpdir
-      o = MailClient::ObjectStore.new(dir)
+      o = Baroque::ObjectStore.new(dir)
       sha = o.add_object("hi there")
 
       o.get_object(sha).should eq 'hi there'
@@ -33,7 +33,7 @@ describe MailClient::ObjectStore do
   describe "#each_object" do
     it "should iterate each object" do
       dir = Dir.mktmpdir
-      o = MailClient::ObjectStore.new(dir)
+      o = Baroque::ObjectStore.new(dir)
       o.add_object("hi there")
       o.add_object("good bye")
       
@@ -47,10 +47,10 @@ describe MailClient::ObjectStore do
 
     it "should include packed objects" do
       dir = Dir.mktmpdir
-      o = MailClient::ObjectStore.new(dir)
+      o = Baroque::ObjectStore.new(dir)
       o.add_object("hi there")
       sha = o.add_object("good bye")
-      pack = MailClient::Packfile.new(dir + "/objects/pack/pack-foo.pack", o)
+      pack = Baroque::Packfile.new(dir + "/objects/pack/pack-foo.pack", o)
       pack.add_object(sha)
       pack.write
 
@@ -64,10 +64,10 @@ describe MailClient::ObjectStore do
 
     it "should write an index file" do
       dir = Dir.mktmpdir
-      o = MailClient::ObjectStore.new(dir)
+      o = Baroque::ObjectStore.new(dir)
       o.add_object("hi there")
       sha = o.add_object("good bye")
-      pack = MailClient::Packfile.new(dir + "/objects/pack/pack-foo.pack", o)
+      pack = Baroque::Packfile.new(dir + "/objects/pack/pack-foo.pack", o)
       pack.add_object(sha)
       pack.write
 
@@ -79,7 +79,7 @@ describe MailClient::ObjectStore do
   describe "#pack_loose" do
     it "should pack all of the loose objects" do
       dir = Dir.mktmpdir
-      o = MailClient::ObjectStore.new(dir)
+      o = Baroque::ObjectStore.new(dir)
       sha = o.add_object("hi there")
       o.pack_loose
 
@@ -94,7 +94,7 @@ describe MailClient::ObjectStore do
 
     it "should delete all of the loose objects" do
       dir = Dir.mktmpdir
-      o = MailClient::ObjectStore.new(dir)
+      o = Baroque::ObjectStore.new(dir)
       sha = o.add_object("hi there")
       o.pack_loose
 

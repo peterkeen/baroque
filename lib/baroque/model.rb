@@ -1,6 +1,6 @@
 require 'tire'
 
-module MailClient
+module Baroque
   class Message
     include Tire::Model::Persistence
 

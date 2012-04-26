@@ -8,15 +8,15 @@ require 'sanitize'
 require 'iconv'
 
 begin
-  require 'mail_client'
+  require 'baroque'
 rescue LoadError => e
   path = File.expand_path '../../lib', __FILE__
   $:.unshift(path) if File.directory?(path) && !$:.include?(path)
-  require 'mail_client'
+  require 'baroque'
 end
 
-require 'mail_client/parser_extention'
-require 'mail_client/message_store'
+require 'baroque/parser_extention'
+require 'baroque/message_store'
 
 GmailImapExtensions.patch_net_imap_response_parser
 
@@ -28,7 +28,7 @@ $stderr.puts "connecting"
 imap = Net::IMAP.new('imap.gmail.com', 993, true)
 imap.login('peter.keen@gmail.com', PASSWORD)
 
-store = MailClient::ObjectStore.new("messages")
+store = Baroque::ObjectStore.new("messages")
 
 def force_utf(s)
   Iconv.conv('UTF-8//IGNORE', 'UTF-8', s + ' ')[0..-2]

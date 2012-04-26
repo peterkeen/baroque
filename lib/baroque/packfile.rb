@@ -3,7 +3,7 @@ require 'digest/sha1'
 
 # abstract some of the common stuff here. Maybe build an abstract StructuredFile class
 
-module MailClient
+module Baroque
 
   class StructuredFile
     def path
@@ -243,7 +243,7 @@ module MailClient
 
     def write_file(io)
       shasum = Digest::SHA1.new
-      index = MailClient::Indexfile.new(path)
+      index = Baroque::Indexfile.new(path)
       shas.each do |sha|
         shasum << sha
         index.update(sha, io.pos)
@@ -297,12 +297,12 @@ module MailClient
     end
 
     def has_object?(sha)
-      index = MailClient::Indexfile.new(@path)
+      index = Baroque::Indexfile.new(@path)
       index.offset(sha) != -1
     end
 
     def get_object(sha)
-      index = MailClient::Indexfile.new(@path)
+      index = Baroque::Indexfile.new(@path)
       offset = index.offset(sha)
       if index.offset(sha) != -1
         open_for_read do |file|

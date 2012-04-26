@@ -1,9 +1,9 @@
 require 'rubygems'
 require 'sinatra/base'
 require 'sinatra/session'
-require 'mail_client/model'
+require 'baroque/model'
 
-module MailClient
+module Baroque
   class Application < Sinatra::Base
     register Sinatra::Session
 

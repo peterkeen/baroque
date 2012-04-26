@@ -16,17 +16,22 @@ rescue LoadError => e
 end
 
 require 'baroque/parser_extention'
-require 'baroque/message_store'
+require 'baroque/object_store'
+
+account = nil
+password = nil
+File.open "#{ENV['HOME']}/.gmail" do |file|
+  account = file.readline.strip
+  password = file.readline.strip
+end
 
 GmailImapExtensions.patch_net_imap_response_parser
 
 STDOUT.sync = true
 
-PASSWORD = 'wxnwcdxskgczelan'
-
 $stderr.puts "connecting"
 imap = Net::IMAP.new('imap.gmail.com', 993, true)
-imap.login('peter.keen@gmail.com', PASSWORD)
+imap.login(account, password)
 
 store = Baroque::ObjectStore.new("messages")
 

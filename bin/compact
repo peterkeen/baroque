@@ -11,3 +11,7 @@ rescue LoadError => e
 end
 
 require 'mail_client/message_store'
+
+store = MailClient::ObjectStore.new('messages')
+
+store.pack_loose

@@ -50,9 +50,9 @@ describe MailClient::ObjectStore do
       o = MailClient::ObjectStore.new(dir)
       o.add_object("hi there")
       sha = o.add_object("good bye")
-      pack = MailClient::Packfile.new(dir + "/objects/pack/pack-foo.pack")
+      pack = MailClient::Packfile.new(dir + "/objects/pack/pack-foo.pack", o)
       pack.add_object(sha)
-      pack.write(o)
+      pack.write
 
       objs = []
       o.each_object do |sha, obj|
@@ -67,9 +67,9 @@ describe MailClient::ObjectStore do
       o = MailClient::ObjectStore.new(dir)
       o.add_object("hi there")
       sha = o.add_object("good bye")
-      pack = MailClient::Packfile.new(dir + "/objects/pack/pack-foo.pack")
+      pack = MailClient::Packfile.new(dir + "/objects/pack/pack-foo.pack", o)
       pack.add_object(sha)
-      pack.write(o)
+      pack.write
 
       File.exists?(dir + '/objects/pack/pack-foo.idx').should eq true
 

@@ -16,7 +16,7 @@ end
 
 require 'baroque/object_store'
 
-MAX_IMPORT = 3000
+MAX_IMPORT = 1000000
 
 def plain_body(msg)
   if not msg
@@ -31,6 +31,21 @@ def plain_body(msg)
   else
     return msg.body.to_s
   end
+end
+
+def mime_types(msg)
+  types = []
+  if not msg
+    return types
+  end
+  if msg.multipart?
+    msg.parts.each do |part|
+      types << part.mime_type
+    end
+  else
+    types << msg.mime_type
+  end
+  types
 end
 
 o = Baroque::ObjectStore.new("messages")
@@ -53,7 +68,7 @@ o.each_object do |key, raw|
 
   message = Mail::Message.new(obj.delete('original'))
   body = plain_body(message)
-  stripped = EmailReplyParser.read(body).to_s[0,160]
+  stripped = EmailReplyParser.read(body).visible_text[0,200]
 
   obj['body'] = body
   obj['body_preview'] = stripped
@@ -62,6 +77,8 @@ o.each_object do |key, raw|
   obj['references'] = message.references
   obj['key'] = key
   obj['cc'] = message.cc
+  obj['mime_types'] = mime_types(message)
+  obj['labels'] += obj['flags']
 
   file.write("{\"index\": {\"_index\": \"messages\", \"_type\": \"message\", \"_id\": #{obj['id']}}}\n")
   file.write(obj.to_json + "\n")
@@ -69,6 +86,7 @@ o.each_object do |key, raw|
 
   if n % 100 == 0
     puts n
+    puts obj['id']
   end
 
   if n % 10000 == 0

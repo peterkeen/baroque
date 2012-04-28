@@ -18,11 +18,8 @@ h = {
         :subject   => { :type => 'string', :analyzer => 'snowball', :store => true  },
         :date      => { :type => 'date', :store => true  },
         :key       => { :type => 'string', :index => 'not_analyzed', :store => true  },
-        :body      => { :type => 'multi_field', :fields => {
-            :body => { :type => 'string', :analyzer => 'snowball', :store => false },
-            :body_preview => { :type => 'string', :index => 'not_analyzed', :store => true }
-          }
-        }
+        :body => { :type => 'string', :analyzer => 'snowball', :store => false },
+        :body_preview => { :type => 'string', :index => 'not_analyzed', :store => true }
       }
     }
   }

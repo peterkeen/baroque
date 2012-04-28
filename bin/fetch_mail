@@ -56,6 +56,7 @@ def fetch_and_write(imap, store, uids)
   msgs = imap.uid_fetch(uids, %w(FLAGS
      RFC822 X-GM-LABELS X-GM-THRID UID))
 
+  unseen = []
   for parts in msgs
     obj = {}
     mail = Mail::Message.new(parts.attr['RFC822'].to_s)
@@ -75,9 +76,13 @@ def fetch_and_write(imap, store, uids)
         store << obj.to_json
       end
 
+      if not obj['flags'].index :Seen
+        unseen << obj['id']
+      end
     end
 
   end
+  imap.store(unseen, "-FLAGS", [:Seen])
   store.set_metadata('max_id', uids[-1])
 end
 

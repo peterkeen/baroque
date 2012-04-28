@@ -91,13 +91,26 @@ module Baroque
       add_object(object)
     end
 
+    def each_packfile
+      if not @packcache
+        @packcache = []
+        Dir.glob(@directory + '/objects/pack/pack*.pack') do |filename|
+          @packcache << Baroque::Packfile.new(filename, self)
+        end
+      end
+
+      @packcache.each do |pack|
+        yield pack
+      end
+
+    end
+
     def get_object(sha1)
       path = @directory + '/objects/' + sha1[0...2] + '/' + sha1[2..40]
       if File.exists?(path)
         _get_object_from_path(path)
       elsif File.exists?(@directory + '/objects/pack/')
-        Dir.glob(@directory + '/objects/pack/pack*.pack') do |filename|
-          pack = Baroque::Packfile.new(filename, self)
+        each_packfile do |pack|
           if pack.has_object? sha1
             return _unpack_compressed(pack.get_object(sha1))
           end

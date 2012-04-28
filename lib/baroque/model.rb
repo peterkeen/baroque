@@ -1,29 +1,32 @@
-require 'tire'
+require 'rubberband'
+require 'mail'
+require 'yajl/json_gem'
 
 module Baroque
   class Message
-    include Tire::Model::Persistence
 
-    index_name 'messages'
-    document_type 'message'
+    FIELDS = %w( subject body_preview labels mime_types in_reply_to references thread_id from to cc date key )
 
-    property :headers
-    property :delivery_handler
-    property :transport_encoding
-    property :body
-    property :body_raw
-    property :separate_parts
-    property :text_part
-    property :html_part
-    property :errors
-    property :charset
-    property :defaulted_charset
-    property :perform_deliveries
-    property :raise_delivery_errors
-    property :delivery_method
-    property :mark_for_delete
-    property :raw_source
-    property :type
-    property :id
+    def self.get(client, id)
+      hit = client.get(id, :fields => FIELDS.join(","))
+      if hit
+        return self.new(hit)
+      else
+        return nil
+      end
+    end
+
+    def initialize(hit)
+      @hit = hit
+    end
+
+    def method_missing(method, *args, &block)
+      @hit.attributes[method]
+    end
+
+    def mail_message(store)
+      raw = store.get_object(key)
+      Mail::Message.new(JSON.parse(raw)['original'])
+    end
   end
 end

@@ -39,7 +39,7 @@ n = 0
 
 file = Tempfile.new("/tmp/index")
 
-def flush_objects
+def flush_objects(file)
   file.flush
   flush = `curl --data-binary @#{file.path} http://localhost:9200/_bulk`
   flush = JSON.parse(flush)
@@ -72,11 +72,12 @@ o.each_object do |key, raw|
   end
 
   if n % 10000 == 0
-    flush_objects
+    flush_objects(file)
   end
 
   if n == MAX_IMPORT
     break
   end
 end
-flush_objects
+
+flush_objects(file)

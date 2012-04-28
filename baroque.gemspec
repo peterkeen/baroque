@@ -19,5 +19,6 @@ Gem::Specification.new do |s|
   s.add_dependency("sinatra")
   s.add_dependency("sinatra-session")
   s.add_dependency("sinatra-contrib")
+  s.add_dependency("email_reply_parser")
 
 end

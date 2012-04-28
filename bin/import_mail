@@ -1,11 +1,10 @@
 #!/usr/bin/env ruby
 
 require 'rubygems'
-require 'mail'
-require 'net/imap'
 require 'yajl/json_gem'
-require 'sanitize'
-require 'iconv'
+require 'mail'
+require 'email_reply_parser'
+require 'tempfile'
 
 begin
   require 'baroque'
@@ -15,53 +14,69 @@ rescue LoadError => e
   require 'baroque'
 end
 
-require 'baroque/parser_extention'
+require 'baroque/object_store'
 
-GmailImapExtensions.patch_net_imap_response_parser
+MAX_IMPORT = 3000
 
-STDOUT.sync = true
-
-PASSWORD = 'wxnwcdxskgczelan'
-
-$stderr.puts "connecting"
-imap = Net::IMAP.new('imap.gmail.com', 993, true)
-imap.login('peter.keen@gmail.com', PASSWORD)
-
-def force_utf(s)
-  Iconv.conv('UTF-8//IGNORE', 'UTF-8', s + ' ')[0..-2]
-end
-
-$stderr.puts "fetching mail"
-imap.select('[Gmail]/All Mail')
-uids = []
-imap.uid_search('UID 1:*').each do |uid|
-  uids << uid
-  if uids.length >= 200
-    $stderr.puts "fetching #{uids[0]} - #{uids[-1]}"
-    msgs = imap.uid_fetch(uids, %w(FLAGS
-       RFC822 X-GM-LABELS X-GM-THRID UID))
-
-    for parts in msgs
-      obj = {}
-      mail = Mail::Message.new(parts.attr['RFC822'].to_s)
-      puts "#{parts.attr['UID']}|#{mail.date}|#{mail.to.join(',')}|#{mail.from[0]}|#{mail.subject}"
-      # obj['id'] = parts.attr['UID']
-      # obj['type'] = 'message'
-      # obj['flags'] = parts.attr['FLAGS'].to_a
-      # obj['labels'] = parts.attr['X-GM-LABELS'].to_a
-      # obj['thread_id'] = parts.attr['X-GM-THRID']
-      # obj['original'] = parts.attr['RFC822'].to_s
-      # obj['from'] = mail.from
-      # obj['to'] = mail.to
-      # obj['body'] = Sanitize.clean(force_utf(mail.body.to_s))
-      # obj['subject'] = mail.subject
-      # obj['date'] = mail.date
-      # messages << obj
+def plain_body(msg)
+  if not msg
+    return ''
+  end
+  if msg.multipart?
+    if msg.parts.length > 0
+      return msg.parts[0].body.to_s
+    else
+      return ''
     end
-    # import messages
-    uids.clear
+  else
+    return msg.body.to_s
   end
 end
 
-imap.logout()
-imap.disconnect()
+o = Baroque::ObjectStore.new("messages")
+
+n = 0
+
+file = Tempfile.new("/tmp/index")
+
+def flush_objects
+  file.flush
+  flush = `curl --data-binary @#{file.path} http://localhost:9200/_bulk`
+  flush = JSON.parse(flush)
+  file.rewind
+  file.truncate(0)
+  puts "Took #{flush['took']} to flush #{flush['items'].length}"
+end
+  
+o.each_object do |key, raw|
+  obj = JSON.parse(raw)
+
+  message = Mail::Message.new(obj.delete('original'))
+  body = plain_body(message)
+  stripped = EmailReplyParser.read(body).to_s[0,160]
+
+  obj['body'] = body
+  obj['body_preview'] = stripped
+  obj['message_id'] = message.message_id
+  obj['in_reply_to'] = message.in_reply_to
+  obj['references'] = message.references
+  obj['key'] = key
+  obj['cc'] = message.cc
+
+  file.write("{\"index\": {\"_index\": \"messages\", \"_type\": \"message\", \"_id\": #{obj['id']}}}\n")
+  file.write(obj.to_json + "\n")
+  n += 1
+
+  if n % 100 == 0
+    puts n
+  end
+
+  if n % 10000 == 0
+    flush_objects
+  end
+
+  if n == MAX_IMPORT
+    break
+  end
+end
+flush_objects

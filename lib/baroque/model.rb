@@ -17,8 +17,25 @@ module Baroque
     end
 
     def self.search(client, query, options={})
+      options[:fields] = FIELDS.join(",")
       hits = client.search(query, options)
       hits.map { |hit| self.new(hit) }
+    end
+
+    def self.all_labels(client)
+      query = {
+        "facets" => {
+          "labels" => {
+            "terms" => {
+              "field" => "labels",
+              "size" => 10000
+            }
+          }
+        },
+        "query" => { "match_all" => {} }
+      }
+
+      return client.search(query)
     end
 
     def initialize(hit)
@@ -32,6 +49,10 @@ module Baroque
     def mail_message(store)
       raw = store.get_object(key)
       Mail::Message.new(JSON.parse(raw)['original'])
+    end
+
+    def id
+      @hit.id
     end
   end
 end

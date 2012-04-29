@@ -1,0 +1,18 @@
+<table class="table">
+  <thead>
+    <tr>
+      <th>From</th>
+      <th>Subject</th>
+      <th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @messages.each do |message| %>
+    <tr>
+      <td><a href="/message/<%= message.id %>"><%= message.from.respond_to?(:join) ? message.from.join(",") : message.from %></a></td>
+      <td><a href="/message/<%= message.id %>"><%= message.subject %></a></td>
+      <td><a href="/message/<%= message.id %>"><%= message.date %></a></td>
+    </tr>
+    <% end %>
+  </tbody>
+</table>

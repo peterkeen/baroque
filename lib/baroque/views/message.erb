@@ -1,0 +1,17 @@
+<div style="height: 70%">
+  <div class="well">
+    <h4><%= @message.subject %></h4>
+    <table>
+      <tr>
+        <td><b>From:</b></td>
+        <td><%= @message.from %></td>
+      </tr>
+      <tr>
+        <td><b>To:</b></td>
+        <td><%= @message.to %></td>
+      </tr>
+    </table>
+  </div>
+  <iframe id="message-container" src="/iframe/<%= @message.id %>" width="100%" frameborder="0" border="0" height="100%" cellspacing="0" class="auto-height">
+</div>
+

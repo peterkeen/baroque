@@ -1,0 +1,114 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'time'
+require 'net/imap'
+
+begin
+  require 'baroque'
+rescue LoadError => e
+  path = File.expand_path '../../lib', __FILE__
+  $:.unshift(path) if File.directory?(path) && !$:.include?(path)
+  require 'baroque'
+end
+
+require 'baroque/parser_extention'
+
+account = nil
+password = nil
+File.open "#{ENV['HOME']}/.gmail" do |file|
+  account = file.readline.strip
+  password = file.readline.strip
+end
+
+GmailImapExtensions.patch_net_imap_response_parser
+
+if ARGV.length < 1
+  $stderr.puts "usage: git_import START_UID:END_UID"
+  exit
+end
+
+search = "UID #{ARGV[0]}"
+
+$stderr.puts "connecting"
+imap = Net::IMAP.new('imap.gmail.com', 993, true)
+imap.login(account, password)
+
+$stderr.puts "fetching mail"
+imap.select('[Gmail]/All Mail')
+uids = []
+
+
+"""
+# Sample session
+commit refs/heads/<mailbox name>
+mark :<uid>
+author <from address> <internaldate>
+committer <delivered to address> <internaldate>
+data <length of commit message>
+Message-Uid: <uid>
+Thread-Id: <thread id>
+Labels: <labels>
+Flags: <flags>
+Imported-At: <utc now>
+M 100644 inline <year>/<month>/<day>/<uid>
+data <length of RFC822 message>
+RFC822 message
+"""
+
+def fetch_and_write(imap, uids)
+  $stderr.puts "fetching #{uids[0]} - #{uids[-1]}"
+  msgs = imap.uid_fetch(uids, %w(
+    FLAGS
+    RFC822
+    X-GM-LABELS
+    X-GM-THRID
+    UID
+  ))
+
+  unseen = []
+  for parts in msgs
+    puts "commit refs/heads/gmail"
+    puts "mark :#{parts.attr['UID']}"
+
+    now = Time.now.rfc822
+    puts "committer Peter Keen <peter.keen@bugsplat.info> #{now}"
+
+    commit_message = "initial add of #{parts.attr['UID']}"
+    puts "data #{commit_message.length}"
+    puts commit_message
+
+    message_header = """X-Message-Uid: #{parts.attr['UID']}
+X-Thread-Id: #{parts.attr['X-GM-THRID']}
+X-Labels: #{parts.attr['X-GM-LABELS'].join(", ")}
+X-Flags: #{parts.attr['FLAGS'].join(", ")}
+"""
+    puts "M 100644 inline #{parts.attr['UID']}"
+    puts "data #{message_header.length + parts.attr['RFC822'].length}"
+    puts message_header
+    puts parts.attr['RFC822']
+    puts ""
+    
+    if not parts.attr['FLAGS'].index :Seen
+      unseen << obj['id']
+    end
+  end
+  if unseen.length > 0
+    imap.uid_store(unseen, "-FLAGS", [:Seen])
+  end
+end
+
+imap.uid_search(search).each do |uid|
+  uids << uid
+  if uids.length >= 1000
+    fetch_and_write(imap, uids)
+    uids.clear
+  end
+end
+
+if uids.length > 0
+  fetch_and_write(imap, uids)
+end
+
+imap.logout()
+imap.disconnect()

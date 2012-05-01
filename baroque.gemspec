@@ -13,6 +13,7 @@ Gem::Specification.new do |s|
   s.add_dependency('zipruby')
   s.add_dependency('sanitize')
   s.add_dependency("rubberband")
+  s.add_dependency("rugged")
   s.add_dependency('yajl-ruby')
   s.add_dependency("mail")
   s.add_dependency("rack", ">= 1.3.6")
